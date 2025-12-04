@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>喂读 - Weidu RSS Reader</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <h1>喂读</h1>
+      <div class="header-actions">
+        <button id="import-feed-btn" class="btn btn-primary">+ Import Feed</button>
+        <button id="manage-feeds-btn" class="btn">Manage Feeds</button>
+        <button id="theme-toggle" class="btn btn-icon" title="Toggle dark mode"></button>
+      </div>
+    </header>
+
+    <div class="search-bar">
+      <input type="search" id="search-input" placeholder="Search articles...">
+    </div>
+
+    <div class="app-layout">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-section">
+          <label class="author-filter">
+            <input type="checkbox" id="starred-filter">
+            ★ Starred only
+          </label>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-header">
+            <h3>Authors</h3>
+            <button id="toggle-authors" class="btn-link">Deselect all</button>
+          </div>
+          <div id="author-filters"></div>
+        </div>
+        <div class="sidebar-section">
+          <h3>Months</h3>
+          <div id="month-nav" class="month-nav"></div>
+        </div>
+      </aside>
+      <main id="main-content">
+        <feed-list></feed-list>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal container -->
+  <div id="modal-container"></div>
+
+  <!-- Scripts -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
