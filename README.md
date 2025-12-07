@@ -1,5 +1,23 @@
 # mini-apps
 
+Try them out yourself:
+
+https://stevenctl.github.io/mini-apps/
+
+or
+
+```bash
+# git clone git@github.com:stevenctl/mini-apps
+git clone https://github.com/stevenctl/mini-apps
+# try opening $pwd/index.html in your browser
+# or for some apps, you need to run a webserver:
+python -m http.server 9999
+# then open http://localhost:9999 in your browser
+```
+
+
+### Motivation
+
 I really love local-first software. Local-only software is even better. Even
 though these apps can be accessed online via github pages, you can run them
 locally with minimal or no setup. The data backing them should load very very
@@ -44,12 +62,13 @@ option for that feed. The proxy is a public one, so use at your own risk.
 
 ### TODO App
 
-Everyon's first starter project, right? This was made out of necessity
+Everyone's first starter project, right? This was made out of necessity
 actually. I wanted a kanban board, but I wanted the info to be stored in text
 files, and wanted persistence to live in git. I already did this with my text
-editor and a few folders. As the side project grew, I wanted a visualizaiton
-and easy way to filter without just grep. Honestly, I might just make a TUI,
-Neovim plugin or CLI down the line.
+editor and a few folders. Also, I didn't want to deal with the increasingly
+slow load times of the GitHub UI, so Projects was out. As my bigger side project
+grew, I wanted a visualizaiton and easy way to filter without just grep.
+Honestly, I might just make a TUI, Neovim plugin or CLI down the line.
 
 The app opens a folder (and has write access!) and it assumes your tasks are
 markdown files sorted into arbitrarily named directories. Each markdown file

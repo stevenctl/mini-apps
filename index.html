@@ -5,110 +5,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mini Apps</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0f0f1a;
-      color: #e0e0e0;
-      min-height: 100vh;
-      padding: 40px 20px;
-    }
-
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
+      font-family: system-ui, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.5;
     }
 
     h1 {
-      text-align: center;
-      font-size: 2.5rem;
-      margin-bottom: 12px;
-      color: #fff;
+      margin-bottom: 4px;
     }
 
-    .subtitle {
-      text-align: center;
-      color: #888;
-      margin-bottom: 48px;
+    .tagline {
+      color: #666;
+      margin-bottom: 8px;
     }
 
-    .apps-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 24px;
+    .github {
+      font-size: 0.9em;
+      margin-bottom: 32px;
     }
 
-    .app-card {
-      background: linear-gradient(145deg, #1a1a2e, #16162a);
-      border: 1px solid #2a2a4a;
-      border-radius: 16px;
-      padding: 28px;
-      text-decoration: none;
-      color: inherit;
-      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    .github a {
+      color: #666;
     }
 
-    .app-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
-      border-color: #6366f1;
+    ul {
+      list-style: none;
+      padding: 0;
     }
 
-    .app-icon {
-      font-size: 2.5rem;
+    li {
       margin-bottom: 16px;
     }
 
-    .app-card h2 {
-      font-size: 1.4rem;
-      margin-bottom: 8px;
-      color: #fff;
+    a {
+      color: #0066cc;
     }
 
-    .app-card p {
-      color: #999;
-      line-height: 1.6;
-      font-size: 0.95rem;
-    }
-
-    .app-tag {
-      display: inline-block;
-      background: #2a2a4a;
-      color: #6366f1;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      margin-top: 16px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    .desc {
+      color: #666;
+      font-size: 0.9em;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Mini Apps</h1>
-    <p class="subtitle">A collection of lightweight web tools</p>
+  <h1>Mini Apps</h1>
+  <p class="tagline">Unremarkable software that seems to work well.</p>
+  <p class="github"><a href="https://github.com/stevenctl/mini-apps">github.com/stevenctl/mini-apps</a></p>
 
-    <div class="apps-grid">
-      <a href="todo_app/index.html" class="app-card">
-        <div class="app-icon">&#9745;</div>
-        <h2>File TODO</h2>
-        <p>A simple task manager with markdown support. Organize your todos with a clean, focused interface.</p>
-        <span class="app-tag">Productivity</span>
-      </a>
-
-      <a href="weidu_reader/index.html" class="app-card">
-        <div class="app-icon">&#128240;</div>
-        <h2>Weidu Reader</h2>
-        <p>A lightweight RSS reader. Subscribe to feeds, filter by author, search articles, and read in dark or light mode.</p>
-        <span class="app-tag">RSS</span>
-      </a>
-    </div>
-  </div>
+  <ul>
+    <li>
+      <a href="todo_app/index.html">File TODO</a>
+      <div class="desc">A simple task manager with markdown support.</div>
+    </li>
+    <li>
+      <a href="weidu_reader/index.html">Weidu Reader</a>
+      <div class="desc">A lightweight RSS reader.</div>
+    </li>
+  </ul>
 </body>
 </html>
