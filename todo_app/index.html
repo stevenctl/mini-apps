@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File TODO</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+    }
+
+    .header {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: #4a4a6a;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #5a5a7a;
+    }
+
+    button.primary {
+      background: #6366f1;
+    }
+
+    button.primary:hover {
+      background: #7578f2;
+    }
+
+    input[type="text"] {
+      background: #2a2a4a;
+      border: 1px solid #4a4a6a;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      min-width: 200px;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #6366f1;
+    }
+
+    .filter-dropdown {
+      position: relative;
+    }
+
+    .filter-dropdown-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .filter-dropdown-btn .count {
+      background: #6366f1;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-size: 11px;
+    }
+
+    .filter-dropdown-panel {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      background: #2a2a4a;
+      border: 1px solid #4a4a6a;
+      border-radius: 8px;
+      min-width: 220px;
+      max-height: 300px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      z-index: 50;
+    }
+
+    .filter-dropdown-panel.hidden {
+      display: none;
+    }
+
+    .filter-dropdown-input {
+      padding: 8px 12px;
+      border-bottom: 1px solid #3a3a5a;
+    }
+
+    .filter-dropdown-input input {
+      width: 100%;
+      background: #1a1a2e;
+      border: 1px solid #3a3a5a;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .filter-dropdown-input input:focus {
+      outline: none;
+      border-color: #6366f1;
+    }
+
+    .filter-dropdown-list {
+      overflow-y: auto;
+      max-height: 220px;
+    }
+
+    .filter-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .filter-dropdown-item:hover {
+      background: #3a3a5a;
+    }
+
+    .filter-dropdown-item.active {
+      background: #3a3a6a;
+    }
+
+    .filter-dropdown-item .check {
+      width: 16px;
+      color: #6366f1;
+    }
+
+    .filter-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-chip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .filter-chip:hover {
+      opacity: 0.8;
+    }
+
+    .filter-chip .remove {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .board {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      padding-bottom: 20px;
+      align-items: flex-start;
+    }
+
+    .column {
+      background: #2a2a4a;
+      border-radius: 8px;
+      min-width: 280px;
+      max-width: 320px;
+      flex-shrink: 0;
+    }
+
+    .column-header {
+      padding: 12px 16px;
+      font-weight: 600;
+      border-bottom: 1px solid #3a3a5a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .column-header .count {
+      background: #4a4a6a;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: normal;
+    }
+
+    .column-body {
+      padding: 8px;
+      min-height: 100px;
+      max-height: calc(100vh - 200px);
+      overflow-y: auto;
+    }
+
+    .column-body.drag-over {
+      background: #3a3a5a;
+    }
+
+    .card {
+      background: #1a1a2e;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: border-color 0.15s;
+      user-select: none;
+    }
+
+    .card:hover {
+      border-color: #4a4a6a;
+    }
+
+    .card.dragging {
+      opacity: 0.5;
+      cursor: grabbing;
+    }
+
+    .card.hidden {
+      display: none;
+    }
+
+    .card-title {
+      font-weight: 500;
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+
+    .card-preview {
+      font-size: 13px;
+      color: #aaa;
+      margin-bottom: 8px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+
+    .card-priority {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .card-priority--0 { background: #dc2626; color: #fff; }
+    .card-priority--1 { background: #ea580c; color: #fff; }
+    .card-priority--2 { background: #ca8a04; color: #fff; }
+    .card-priority--3 { background: #2563eb; color: #fff; }
+    .card-priority--4 { background: #4b5563; color: #fff; }
+
+    .card-category {
+      font-size: 11px;
+      font-weight: 700;
+      color: #a5a5c5;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .card-size {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    .card-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .card-tag {
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-overlay.hidden {
+      display: none;
+    }
+
+    .modal {
+      background: #2a2a4a;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #3a3a5a;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .modal-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .modal-meta-priority {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .modal-meta-category {
+      font-size: 11px;
+      font-weight: 700;
+      color: #a5a5c5;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .modal-meta-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .modal-meta-size {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    .modal-meta-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .modal-meta-tag {
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+
+    .modal-meta-filename {
+      font-size: 11px;
+      color: #666;
+      margin-top: 8px;
+      font-family: monospace;
+    }
+
+    .modal-meta-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .modal-meta-row .filter-dropdown-panel {
+      min-width: 200px;
+    }
+
+    .modal-body {
+      padding: 16px 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-body textarea {
+      width: 100%;
+      flex: 1;
+      background: #1a1a2e;
+      border: 1px solid #3a3a5a;
+      color: #fff;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      resize: none;
+    }
+
+    .modal-body textarea:focus {
+      outline: none;
+      border-color: #6366f1;
+    }
+
+    .modal-body textarea.hidden {
+      display: none;
+    }
+
+    .modal-rendered {
+      flex: 1;
+      background: #1a1a2e;
+      border: 1px solid #3a3a5a;
+      border-radius: 8px;
+      padding: 20px;
+      overflow-y: auto;
+      color: #ddd;
+      line-height: 1.7;
+    }
+
+    .modal-rendered.hidden {
+      display: none;
+    }
+
+    .modal-rendered h1, .modal-rendered h2, .modal-rendered h3 {
+      color: #fff;
+      margin-top: 1em;
+      margin-bottom: 0.5em;
+    }
+
+    .modal-rendered h1:first-child, .modal-rendered h2:first-child, .modal-rendered h3:first-child {
+      margin-top: 0;
+    }
+
+    .modal-rendered p {
+      margin: 0.8em 0;
+    }
+
+    .modal-rendered ul, .modal-rendered ol {
+      margin: 0.8em 0;
+      padding-left: 1.5em;
+    }
+
+    .modal-rendered li {
+      margin: 0.3em 0;
+    }
+
+    .modal-rendered code {
+      background: #2a2a4a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+      font-size: 0.9em;
+    }
+
+    .modal-rendered pre {
+      background: #2a2a4a;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+
+    .modal-rendered pre code {
+      background: none;
+      padding: 0;
+    }
+
+    .modal-rendered a {
+      color: #818cf8;
+    }
+
+    .modal-rendered blockquote {
+      border-left: 3px solid #4a4a6a;
+      margin: 0.8em 0;
+      padding-left: 1em;
+      color: #aaa;
+    }
+
+    .modal-empty {
+      color: #666;
+      font-style: italic;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #3a3a5a;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .modal-footer .delete-btn {
+      background: #dc2626;
+      margin-right: auto;
+    }
+
+    .modal-footer .delete-btn:hover {
+      background: #ef4444;
+    }
+
+    /* Initial state */
+    .init-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      text-align: center;
+    }
+
+    .init-screen h1 {
+      margin-bottom: 8px;
+    }
+
+    .init-screen p {
+      color: #aaa;
+      margin-bottom: 24px;
+    }
+
+    .init-screen button {
+      font-size: 16px;
+      padding: 12px 24px;
+    }
+
+    .app.hidden, .init-screen.hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="init" class="init-screen hidden">
+    <h1>File TODO</h1>
+    <p>Select a folder containing your todo directories.<br>Each subdirectory becomes a column. Each .md file becomes a card.</p>
+    <button class="primary" onclick="openFolder()">Open Folder</button>
+  </div>
+
+  <div id="app" class="app hidden">
+    <div class="header">
+      <button class="primary" onclick="openFolder()">Open Folder</button>
+      <button onclick="refresh()">Refresh</button>
+      <button onclick="createCard()">+ New Card</button>
+      <input type="text" id="search" placeholder="Search..." oninput="applyFilters()">
+
+      <div class="filter-dropdown" id="priority-dropdown">
+        <button class="filter-dropdown-btn" onclick="toggleDropdown('priority')">
+          Priority <span class="count" id="priority-count" style="display:none">0</span>
+        </button>
+        <div class="filter-dropdown-panel hidden" id="priority-panel" style="min-width:150px">
+          <div class="filter-dropdown-list" id="priority-list"></div>
+        </div>
+      </div>
+
+      <div class="filter-dropdown" id="category-dropdown">
+        <button class="filter-dropdown-btn" onclick="toggleDropdown('category')">
+          Categories <span class="count" id="category-count" style="display:none">0</span>
+        </button>
+        <div class="filter-dropdown-panel hidden" id="category-panel">
+          <div class="filter-dropdown-input">
+            <input type="text" placeholder="Filter categories..." id="category-search"
+                   oninput="filterDropdownList('category')"
+                   onkeydown="handleDropdownKey(event, 'category')">
+          </div>
+          <div class="filter-dropdown-list" id="category-list"></div>
+        </div>
+      </div>
+
+      <div class="filter-dropdown" id="tag-dropdown">
+        <button class="filter-dropdown-btn" onclick="toggleDropdown('tag')">
+          Tags <span class="count" id="tag-count" style="display:none">0</span>
+        </button>
+        <div class="filter-dropdown-panel hidden" id="tag-panel">
+          <div class="filter-dropdown-input">
+            <input type="text" placeholder="Filter tags..." id="tag-search"
+                   oninput="filterDropdownList('tag')"
+                   onkeydown="handleDropdownKey(event, 'tag')">
+          </div>
+          <div class="filter-dropdown-list" id="tag-list"></div>
+        </div>
+      </div>
+
+      <div class="filter-chips" id="active-filters"></div>
+    </div>
+    <div id="board" class="board"></div>
+  </div>
+
+  <div id="modal" class="modal-overlay hidden" onclick="if(event.target === this) closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-meta" id="modal-meta"></div>
+      </div>
+      <div class="modal-body">
+        <div id="modal-rendered" class="modal-rendered"></div>
+        <textarea id="modal-content" class="hidden" placeholder="---
+title: Card title
+category: optional category
+size: optional size
+tags: [tag1, tag2]
+---
+
+Your content here..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="delete-btn" id="modal-delete" onclick="deleteCard()">Delete</button>
+        <button id="modal-edit-btn" onclick="toggleEditMode()">Edit</button>
+        <button id="modal-close-btn" onclick="closeModal()">Close</button>
+        <button id="modal-cancel-btn" onclick="cancelEdit()" style="display:none">Cancel</button>
+        <button class="primary" id="modal-save-btn" onclick="saveCard()" style="display:none">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let rootHandle = null;
+    let columns = [];
+    let allTags = new Set();
+    let allCategories = new Set();
+    let allPriorities = new Set();
+    let activeTags = new Set();
+    let activeCategories = new Set();
+    let activePriorities = new Set(); // includes special '__none__' for uncategorized
+    let currentCard = null; // { column, filename, isNew }
+    let openDropdown = null;
+
+    // Generate consistent color from string hash
+    function hashColor(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const h = Math.abs(hash) % 360;
+      return `hsl(${h}, 50%, 35%)`;
+    }
+
+    function hashColorLight(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const h = Math.abs(hash) % 360;
+      return `hsl(${h}, 60%, 75%)`;
+    }
+
+    const priorityColors = {
+      0: { bg: '#dc2626', fg: '#fff' },
+      1: { bg: '#ea580c', fg: '#fff' },
+      2: { bg: '#ca8a04', fg: '#fff' },
+      3: { bg: '#2563eb', fg: '#fff' },
+      4: { bg: '#4b5563', fg: '#fff' },
+    };
+
+    function getPriorityColor(p) {
+      return priorityColors[p] || { bg: '#4b5563', fg: '#fff' };
+    }
+
+    // IndexedDB for storing directory handle
+    const DB_NAME = 'file-todo';
+    const STORE_NAME = 'handles';
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result);
+        req.onupgradeneeded = () => {
+          req.result.createObjectStore(STORE_NAME);
+        };
+      });
+    }
+
+    async function saveHandle(handle) {
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).put(handle, 'root');
+      return new Promise((resolve, reject) => {
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function loadHandle() {
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get('root');
+      return new Promise((resolve, reject) => {
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function tryRestoreHandle() {
+      try {
+        const handle = await loadHandle();
+        if (!handle) {
+          document.getElementById('init').classList.remove('hidden');
+          return false;
+        }
+
+        const perm = await handle.requestPermission({ mode: 'readwrite' });
+        if (perm === 'granted') {
+          rootHandle = handle;
+          await loadBoard();
+          document.getElementById('app').classList.remove('hidden');
+          return true;
+        } else {
+          document.getElementById('init').classList.remove('hidden');
+        }
+      } catch (e) {
+        console.log('Could not restore handle:', e);
+        document.getElementById('init').classList.remove('hidden');
+      }
+      return false;
+    }
+
+    // Try to restore on load
+    tryRestoreHandle();
+
+    async function openFolder() {
+      try {
+        rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await saveHandle(rootHandle);
+        await loadBoard();
+        document.getElementById('init').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          console.error(e);
+          alert('Failed to open folder: ' + e.message);
+        }
+      }
+    }
+
+    async function loadBoard() {
+      columns = [];
+      allTags = new Set();
+      allCategories = new Set();
+      allPriorities = new Set();
+
+      for await (const entry of rootHandle.values()) {
+        if (entry.kind === 'directory' && !entry.name.startsWith('_') && !entry.name.startsWith('.')) {
+          const column = { name: entry.name, handle: entry, cards: [] };
+
+          for await (const file of entry.values()) {
+            if (file.kind === 'file' && file.name.endsWith('.md')) {
+              const fileHandle = file;
+              const fileData = await fileHandle.getFile();
+              const raw = await fileData.text();
+              const { meta, body } = parseFrontmatter(raw);
+              const tags = extractTags(body, meta);
+              tags.forEach(t => allTags.add(t));
+              if (meta.category) allCategories.add(meta.category);
+              if (meta.priority != null) allPriorities.add(meta.priority);
+
+              column.cards.push({
+                filename: file.name,
+                title: meta.title || file.name.replace(/\.md$/, ''),
+                content: raw,
+                body: body,
+                meta: meta,
+                tags: tags,
+                handle: fileHandle
+              });
+            }
+          }
+
+          // Sort cards by priority (lower = higher priority), then alphabetically
+          column.cards.sort((a, b) => {
+            const pa = a.meta.priority ?? 999;
+            const pb = b.meta.priority ?? 999;
+            if (pa !== pb) return pa - pb;
+            return a.title.localeCompare(b.title);
+          });
+          columns.push(column);
+        }
+      }
+
+      // Sort columns in a sensible order
+      const order = ['backlog', 'wip', 'working', 'testing', 'done', 'blocked' ];
+      columns.sort((a, b) => {
+        const ai = order.indexOf(a.name.toLowerCase());
+        const bi = order.indexOf(b.name.toLowerCase());
+        if (ai === -1 && bi === -1) return a.name.localeCompare(b.name);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+
+      renderBoard();
+      renderFilterDropdowns();
+      renderActiveFilters();
+    }
+
+    function decodeUnicodeEscapes(str) {
+      return str.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
+        String.fromCharCode(parseInt(hex, 16))
+      );
+    }
+
+    function parseFrontmatter(content) {
+      const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+      if (!match) return { meta: {}, body: content };
+
+      const yaml = match[1];
+      const body = match[2];
+      const meta = {};
+
+      // Simple YAML parser for our needs
+      yaml.split('\n').forEach(line => {
+        const colonIdx = line.indexOf(':');
+        if (colonIdx === -1) return;
+
+        const key = line.slice(0, colonIdx).trim();
+        let value = line.slice(colonIdx + 1).trim();
+
+        // Handle arrays like "tags: []" or "tags: [a, b]"
+        if (value.startsWith('[') && value.endsWith(']')) {
+          const inner = value.slice(1, -1).trim();
+          value = inner ? inner.split(',').map(s => decodeUnicodeEscapes(s.trim().replace(/^['"]|['"]$/g, ''))) : [];
+        }
+        // Handle quoted strings
+        else if ((value.startsWith("'") && value.endsWith("'")) ||
+                 (value.startsWith('"') && value.endsWith('"'))) {
+          value = decodeUnicodeEscapes(value.slice(1, -1));
+        }
+        // Handle null
+        else if (value === 'null' || value === '') {
+          value = null;
+        }
+        // Handle numbers
+        else if (/^\d+$/.test(value)) {
+          value = parseInt(value, 10);
+        }
+        // Plain value
+        else {
+          value = decodeUnicodeEscapes(value);
+        }
+
+        meta[key] = value;
+      });
+
+      return { meta, body: decodeUnicodeEscapes(body) };
+    }
+
+    function extractTags(content, meta) {
+      // Combine frontmatter tags with inline #tags
+      const inlineTags = content.match(/#[\w-]+/g) || [];
+      const fmTags = Array.isArray(meta.tags) ? meta.tags : [];
+      return [...new Set([...fmTags, ...inlineTags.map(t => t.slice(1))])];
+    }
+
+    function renderBoard() {
+      const board = document.getElementById('board');
+      board.innerHTML = '';
+
+      columns.forEach(column => {
+        const colEl = document.createElement('div');
+        colEl.className = 'column';
+        colEl.dataset.column = column.name;
+
+        const visibleCards = column.cards.filter(c => !c.hidden);
+
+        colEl.innerHTML = `
+          <div class="column-header">
+            <span>${column.name}</span>
+            <span class="count">${visibleCards.length}</span>
+          </div>
+          <div class="column-body"
+               ondragover="handleDragOver(event)"
+               ondragleave="handleDragLeave(event)"
+               ondrop="handleDrop(event, '${column.name}')">
+          </div>
+        `;
+
+        const body = colEl.querySelector('.column-body');
+
+        column.cards.forEach(card => {
+          const cardEl = document.createElement('div');
+          cardEl.className = 'card' + (card.hidden ? ' hidden' : '');
+          cardEl.draggable = true;
+          cardEl.dataset.filename = card.filename;
+          cardEl.dataset.column = column.name;
+
+          cardEl.ondragstart = (e) => handleDragStart(e, column.name, card.filename);
+          cardEl.ondragend = handleDragEnd;
+          cardEl.ondragover = (e) => {
+            e.preventDefault(); // Allow drop
+            e.currentTarget.closest('.column-body').classList.add('drag-over');
+          };
+          cardEl.ondrop = (e) => handleDrop(e, column.name);
+
+          const preview = card.body
+            .replace(/#[\w-]+/g, '')
+            .replace(/^#+ .*/gm, '')
+            .trim()
+            .slice(0, 150);
+
+          const priority = card.meta.priority;
+          const pColor = getPriorityColor(priority);
+
+          cardEl.innerHTML = `
+            ${priority != null ? `<span class="card-priority" style="background:${pColor.bg};color:${pColor.fg}">P${priority}</span>` : ''}
+            ${card.meta.category ? `<div class="card-category">${escapeHtml(card.meta.category)}</div>` : ''}
+            <div class="card-title">${escapeHtml(card.title)}</div>
+            ${card.meta.size ? `<div class="card-size">${escapeHtml(card.meta.size)}</div>` : ''}
+            ${preview ? `<div class="card-preview">${escapeHtml(preview)}</div>` : ''}
+            ${card.tags.length ? `
+              <div class="card-tags">
+                ${card.tags.map(t => `<span class="card-tag" style="background:${hashColor(t)};color:${hashColorLight(t)}">#${escapeHtml(t)}</span>`).join('')}
+              </div>
+            ` : ''}
+          `;
+
+          // Click to edit (distinguish from drag)
+          let startX, startY, isDrag = false;
+          cardEl.addEventListener('mousedown', (e) => {
+            startX = e.clientX;
+            startY = e.clientY;
+            isDrag = false;
+          });
+          cardEl.addEventListener('mousemove', (e) => {
+            if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) {
+              isDrag = true;
+            }
+          });
+          cardEl.addEventListener('mouseup', (e) => {
+            if (!isDrag) {
+              editCard(column.name, card.filename);
+            }
+          });
+
+          body.appendChild(cardEl);
+        });
+
+        board.appendChild(colEl);
+      });
+    }
+
+    function renderFilterDropdowns() {
+      renderPriorityDropdownList();
+      renderDropdownList('category', [...allCategories].sort(), activeCategories);
+      renderDropdownList('tag', [...allTags].sort(), activeTags);
+
+      // Update counts
+      const prioCount = document.getElementById('priority-count');
+      const catCount = document.getElementById('category-count');
+      const tagCount = document.getElementById('tag-count');
+      prioCount.textContent = activePriorities.size;
+      prioCount.style.display = activePriorities.size ? 'inline' : 'none';
+      catCount.textContent = activeCategories.size;
+      catCount.style.display = activeCategories.size ? 'inline' : 'none';
+      tagCount.textContent = activeTags.size;
+      tagCount.style.display = activeTags.size ? 'inline' : 'none';
+    }
+
+    function renderPriorityDropdownList() {
+      const list = document.getElementById('priority-list');
+      if (!list) return;
+
+      // Sort priorities: numbers first (ascending), then strings
+      const sorted = [...allPriorities].sort((a, b) => {
+        const aNum = typeof a === 'number';
+        const bNum = typeof b === 'number';
+        if (aNum && bNum) return a - b;
+        if (aNum) return -1;
+        if (bNum) return 1;
+        return String(a).localeCompare(String(b));
+      });
+
+      let html = '';
+
+      // Priority items
+      sorted.forEach(p => {
+        const pColor = typeof p === 'number' ? getPriorityColor(p) : { bg: '#4b5563', fg: '#fff' };
+        const label = typeof p === 'number' ? `P${p}` : p;
+        const isActive = activePriorities.has(p);
+        html += `
+          <div class="filter-dropdown-item ${isActive ? 'active' : ''}"
+               onclick="togglePriorityFilter(${typeof p === 'number' ? p : `'${escapeAttr(String(p))}'`})"
+               style="background:${pColor.bg};color:${pColor.fg};margin:4px;border-radius:4px">
+            <span class="check">${isActive ? '✓' : ''}</span>
+            <span>${escapeHtml(String(label))}</span>
+          </div>
+        `;
+      });
+
+      // Uncategorized option
+      const noneActive = activePriorities.has('__none__');
+      html += `
+        <div class="filter-dropdown-item ${noneActive ? 'active' : ''}"
+             onclick="togglePriorityFilter('__none__')"
+             style="margin:4px;border-top:1px solid #3a3a5a;padding-top:8px">
+          <span class="check">${noneActive ? '✓' : ''}</span>
+          <span style="color:#888">No priority</span>
+        </div>
+      `;
+
+      list.innerHTML = html;
+    }
+
+    function togglePriorityFilter(value) {
+      if (activePriorities.has(value)) {
+        activePriorities.delete(value);
+      } else {
+        activePriorities.add(value);
+      }
+      renderFilterDropdowns();
+      renderActiveFilters();
+      applyFilters();
+    }
+
+    function renderDropdownList(type, items, activeSet) {
+      const list = document.getElementById(`${type}-list`);
+      const search = document.getElementById(`${type}-search`).value.toLowerCase();
+
+      const filtered = items.filter(item => item.toLowerCase().includes(search));
+
+      list.innerHTML = filtered.map(item => `
+        <div class="filter-dropdown-item ${activeSet.has(item) ? 'active' : ''}"
+             onclick="toggleFilter('${type}', '${escapeAttr(item)}')">
+          <span class="check">${activeSet.has(item) ? '✓' : ''}</span>
+          ${type === 'tag' ? `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${hashColor(item)}"></span>` : ''}
+          <span>${escapeHtml(item)}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderActiveFilters() {
+      const container = document.getElementById('active-filters');
+      const chips = [];
+
+      activePriorities.forEach(p => {
+        if (p === '__none__') {
+          chips.push(`<span class="filter-chip" style="background:#3a3a5a;color:#aaa" onclick="togglePriorityFilter('__none__')">
+            No priority <span class="remove">×</span>
+          </span>`);
+        } else {
+          const pColor = typeof p === 'number' ? getPriorityColor(p) : { bg: '#4b5563', fg: '#fff' };
+          const label = typeof p === 'number' ? `P${p}` : p;
+          chips.push(`<span class="filter-chip" style="background:${pColor.bg};color:${pColor.fg}" onclick="togglePriorityFilter(${typeof p === 'number' ? p : `'${escapeAttr(String(p))}'`})">
+            ${escapeHtml(String(label))} <span class="remove">×</span>
+          </span>`);
+        }
+      });
+
+      activeCategories.forEach(cat => {
+        chips.push(`<span class="filter-chip" style="background:#4a4a6a;color:#fff" onclick="toggleFilter('category', '${escapeAttr(cat)}')">
+          ${escapeHtml(cat)} <span class="remove">×</span>
+        </span>`);
+      });
+
+      activeTags.forEach(tag => {
+        chips.push(`<span class="filter-chip" style="background:${hashColor(tag)};color:${hashColorLight(tag)}" onclick="toggleFilter('tag', '${escapeAttr(tag)}')">
+          #${escapeHtml(tag)} <span class="remove">×</span>
+        </span>`);
+      });
+
+      container.innerHTML = chips.join('');
+    }
+
+    function toggleDropdown(type) {
+      const panel = document.getElementById(`${type}-panel`);
+      const wasOpen = !panel.classList.contains('hidden');
+
+      // Close any open dropdown
+      document.querySelectorAll('.filter-dropdown-panel').forEach(p => p.classList.add('hidden'));
+
+      if (!wasOpen) {
+        panel.classList.remove('hidden');
+        const searchInput = document.getElementById(`${type}-search`);
+        if (searchInput) searchInput.focus();
+        openDropdown = type;
+      } else {
+        openDropdown = null;
+      }
+    }
+
+    function filterDropdownList(type) {
+      const activeSet = type === 'category' ? activeCategories : activeTags;
+      const items = type === 'category' ? [...allCategories].sort() : [...allTags].sort();
+      renderDropdownList(type, items, activeSet);
+    }
+
+    function handleDropdownKey(e, type) {
+      if (e.key === 'Enter') {
+        const search = document.getElementById(`${type}-search`).value.toLowerCase();
+        const items = type === 'category' ? [...allCategories] : [...allTags];
+        const match = items.find(item => item.toLowerCase().includes(search));
+        if (match) {
+          toggleFilter(type, match);
+          document.getElementById(`${type}-search`).value = '';
+          filterDropdownList(type);
+        }
+      } else if (e.key === 'Escape') {
+        document.getElementById(`${type}-panel`).classList.add('hidden');
+        openDropdown = null;
+      }
+    }
+
+    function toggleFilter(type, value) {
+      const activeSet = type === 'category' ? activeCategories : activeTags;
+      if (activeSet.has(value)) {
+        activeSet.delete(value);
+      } else {
+        activeSet.add(value);
+      }
+      renderFilterDropdowns();
+      renderActiveFilters();
+      applyFilters();
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.filter-dropdown')) {
+        document.querySelectorAll('.filter-dropdown-panel').forEach(p => p.classList.add('hidden'));
+        openDropdown = null;
+        modalDropdownOpen = null;
+      }
+    });
+
+    function applyFilters() {
+      const search = document.getElementById('search').value.toLowerCase();
+
+      columns.forEach(column => {
+        column.cards.forEach(card => {
+          let visible = true;
+
+          // Priority filter (OR logic)
+          if (activePriorities.size > 0) {
+            const cardPriority = card.meta.priority;
+            const hasNone = activePriorities.has('__none__');
+            const matchesPriority = cardPriority != null && activePriorities.has(cardPriority);
+            const matchesNone = hasNone && cardPriority == null;
+            if (!matchesPriority && !matchesNone) {
+              visible = false;
+            }
+          }
+
+          // Category filter (OR logic if multiple)
+          if (visible && activeCategories.size > 0) {
+            if (!card.meta.category || !activeCategories.has(card.meta.category)) {
+              visible = false;
+            }
+          }
+
+          // Tag filter (AND logic)
+          if (visible && activeTags.size > 0) {
+            for (const tag of activeTags) {
+              if (!card.tags.includes(tag)) {
+                visible = false;
+                break;
+              }
+            }
+          }
+
+          // Text search
+          if (visible && search) {
+            const haystack = (card.title + ' ' + card.body).toLowerCase();
+            if (!haystack.includes(search)) {
+              visible = false;
+            }
+          }
+
+          card.hidden = !visible;
+        });
+      });
+
+      renderBoard();
+    }
+
+    // Drag and drop
+    let dragData = null;
+
+    function handleDragStart(e, column, filename) {
+      dragData = { column, filename };
+      e.target.classList.add('dragging');
+    }
+
+    function handleDragEnd(e) {
+      e.target.classList.remove('dragging');
+      document.querySelectorAll('.column-body').forEach(el => el.classList.remove('drag-over'));
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('drag-over');
+    }
+
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over');
+    }
+
+    async function handleDrop(e, targetColumn) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+
+      if (!dragData || dragData.column === targetColumn) return;
+
+      const sourceCol = columns.find(c => c.name === dragData.column);
+      const targetCol = columns.find(c => c.name === targetColumn);
+      const cardIndex = sourceCol.cards.findIndex(c => c.filename === dragData.filename);
+
+      if (cardIndex === -1) return;
+
+      const card = sourceCol.cards[cardIndex];
+
+      try {
+        // Create file in target directory
+        const newHandle = await targetCol.handle.getFileHandle(card.filename, { create: true });
+        const writable = await newHandle.createWritable();
+        await writable.write(card.content);
+        await writable.close();
+
+        // Delete from source directory
+        await sourceCol.handle.removeEntry(card.filename);
+
+        // Update state
+        sourceCol.cards.splice(cardIndex, 1);
+        card.handle = newHandle;
+        targetCol.cards.push(card);
+        targetCol.cards.sort((a, b) => {
+          const pa = a.meta.priority ?? 999;
+          const pb = b.meta.priority ?? 999;
+          if (pa !== pb) return pa - pb;
+          return a.title.localeCompare(b.title);
+        });
+
+        renderBoard();
+      } catch (e) {
+        console.error(e);
+        alert('Failed to move card: ' + e.message);
+      }
+
+      dragData = null;
+    }
+
+    // Modal / editing
+    let modalDropdownOpen = null;
+    let modalEditMode = false;
+    let modalOriginalContent = '';
+
+    function renderMarkdownView() {
+      const content = document.getElementById('modal-content').value;
+      const { body } = parseFrontmatter(content);
+      const rendered = document.getElementById('modal-rendered');
+
+      if (body.trim()) {
+        rendered.innerHTML = marked.parse(body);
+      } else {
+        rendered.innerHTML = '<p class="modal-empty">No content yet. Click Edit to add content.</p>';
+      }
+    }
+
+    function setEditMode(editing) {
+      modalEditMode = editing;
+      const textarea = document.getElementById('modal-content');
+      const rendered = document.getElementById('modal-rendered');
+      const editBtn = document.getElementById('modal-edit-btn');
+      const closeBtn = document.getElementById('modal-close-btn');
+      const saveBtn = document.getElementById('modal-save-btn');
+      const cancelBtn = document.getElementById('modal-cancel-btn');
+
+      if (editing) {
+        modalOriginalContent = textarea.value;
+        textarea.classList.remove('hidden');
+        rendered.classList.add('hidden');
+        editBtn.style.display = 'none';
+        closeBtn.style.display = 'none';
+        saveBtn.style.display = 'inline-block';
+        cancelBtn.style.display = 'inline-block';
+        textarea.focus();
+      } else {
+        textarea.classList.add('hidden');
+        rendered.classList.remove('hidden');
+        editBtn.style.display = 'inline-block';
+        closeBtn.style.display = 'inline-block';
+        saveBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+        renderMarkdownView();
+      }
+    }
+
+    function toggleEditMode() {
+      setEditMode(!modalEditMode);
+    }
+
+    function cancelEdit() {
+      document.getElementById('modal-content').value = modalOriginalContent;
+      setEditMode(false);
+      updateModalMeta();
+    }
+
+    function updateModalMeta() {
+      const content = document.getElementById('modal-content').value;
+      const { meta, body } = parseFrontmatter(content);
+      const cardTags = extractTags(body, meta);
+
+      const title = meta.title || currentCard?.filename?.replace(/\.md$/, '') || 'New Card';
+      const priority = meta.priority;
+      const pColor = getPriorityColor(priority);
+      const metaEl = document.getElementById('modal-meta');
+
+      const categoryOptions = [...allCategories].sort();
+      const tagOptions = [...allTags].sort();
+
+      metaEl.innerHTML = `
+        ${priority != null ? `<span class="modal-meta-priority" style="background:${pColor.bg};color:${pColor.fg}">P${priority}</span>` : ''}
+        ${meta.category ? `<div class="modal-meta-category">${escapeHtml(meta.category)}</div>` : ''}
+        <div class="modal-meta-title">${escapeHtml(title)}</div>
+        ${meta.size ? `<div class="modal-meta-size">${escapeHtml(meta.size)}</div>` : ''}
+        ${cardTags.length ? `
+          <div class="modal-meta-tags">
+            ${cardTags.map(t => `<span class="modal-meta-tag" style="background:${hashColor(t)};color:${hashColorLight(t)}">#${escapeHtml(t)}</span>`).join('')}
+          </div>
+        ` : ''}
+        ${currentCard?.filename ? `<div class="modal-meta-filename">${escapeHtml(currentCard.filename)}</div>` : ''}
+
+        <div class="modal-meta-row">
+          <div class="filter-dropdown" id="modal-priority-dropdown">
+            <button class="filter-dropdown-btn" onclick="toggleModalDropdown('priority', event)" style="${priority != null ? `background:${pColor.bg};color:${pColor.fg}` : ''}">
+              ${priority != null ? `P${priority}` : 'Set Priority'}
+            </button>
+            <div class="filter-dropdown-panel hidden" id="modal-priority-panel" style="min-width:120px">
+              <div class="filter-dropdown-list" id="modal-priority-list">
+                ${[0,1,2,3,4].map(p => {
+                  const pc = getPriorityColor(p);
+                  return `<div class="filter-dropdown-item ${priority === p ? 'active' : ''}"
+                       onclick="setModalPriority(${p})" style="background:${pc.bg};color:${pc.fg};margin:4px;border-radius:4px">
+                    <span class="check">${priority === p ? '✓' : ''}</span>
+                    <span>P${p}</span>
+                  </div>`;
+                }).join('')}
+                <div class="filter-dropdown-item" onclick="setModalPriority(null)" style="margin:4px">
+                  <span class="check">${priority == null ? '✓' : ''}</span>
+                  <span>None</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-dropdown" id="modal-category-dropdown">
+            <button class="filter-dropdown-btn" onclick="toggleModalDropdown('category', event)">
+              ${meta.category ? escapeHtml(meta.category) : 'Set Category'}
+            </button>
+            <div class="filter-dropdown-panel hidden" id="modal-category-panel">
+              <div class="filter-dropdown-input">
+                <input type="text" placeholder="Filter or add..." id="modal-category-search"
+                       oninput="filterModalDropdown('category')"
+                       onkeydown="handleModalDropdownKey(event, 'category')">
+              </div>
+              <div class="filter-dropdown-list" id="modal-category-list"></div>
+            </div>
+          </div>
+
+          <div class="filter-dropdown" id="modal-tag-dropdown">
+            <button class="filter-dropdown-btn" onclick="toggleModalDropdown('tag', event)">
+              Edit Tags (${cardTags.length})
+            </button>
+            <div class="filter-dropdown-panel hidden" id="modal-tag-panel">
+              <div class="filter-dropdown-input">
+                <input type="text" placeholder="Filter or add..." id="modal-tag-search"
+                       oninput="filterModalDropdown('tag')"
+                       onkeydown="handleModalDropdownKey(event, 'tag')">
+              </div>
+              <div class="filter-dropdown-list" id="modal-tag-list"></div>
+            </div>
+          </div>
+
+          <div class="filter-dropdown" id="modal-size-dropdown">
+            <button class="filter-dropdown-btn" onclick="toggleModalDropdown('size', event)">
+              ${meta.size ? escapeHtml(meta.size) : 'Set Size'}
+            </button>
+            <div class="filter-dropdown-panel hidden" id="modal-size-panel" style="min-width:140px">
+              <div class="filter-dropdown-list" id="modal-size-list">
+                ${['XS', 'S', 'M', 'L', 'XL'].map(s => `
+                  <div class="filter-dropdown-item ${meta.size === s ? 'active' : ''}"
+                       onclick="setModalSize('${s}')">
+                    <span class="check">${meta.size === s ? '✓' : ''}</span>
+                    <span>${s}</span>
+                  </div>
+                `).join('')}
+                <div class="filter-dropdown-item ${!meta.size ? 'active' : ''}"
+                     onclick="setModalSize(null)"
+                     style="border-top:1px solid #3a3a5a;margin-top:4px;padding-top:8px">
+                  <span class="check">${!meta.size ? '✓' : ''}</span>
+                  <span style="color:#888">None</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Populate dropdown lists
+      renderModalDropdownList('category', categoryOptions, meta.category ? [meta.category] : []);
+      renderModalDropdownList('tag', tagOptions, cardTags);
+    }
+
+    function renderModalDropdownList(type, items, selected) {
+      const list = document.getElementById(`modal-${type}-list`);
+      if (!list) return;
+
+      const searchEl = document.getElementById(`modal-${type}-search`);
+      const search = searchEl ? searchEl.value.toLowerCase() : '';
+      const filtered = items.filter(item => item.toLowerCase().includes(search));
+      const selectedSet = new Set(selected);
+
+      list.innerHTML = filtered.map(item => `
+        <div class="filter-dropdown-item ${selectedSet.has(item) ? 'active' : ''}"
+             onclick="setModalMeta('${type}', '${escapeAttr(item)}')">
+          <span class="check">${selectedSet.has(item) ? '✓' : ''}</span>
+          ${type === 'tag' ? `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${hashColor(item)}"></span>` : ''}
+          <span>${escapeHtml(item)}</span>
+        </div>
+      `).join('');
+
+      // Add "create new" option if search doesn't match existing
+      if (search && !items.some(i => i.toLowerCase() === search)) {
+        list.innerHTML += `
+          <div class="filter-dropdown-item" onclick="setModalMeta('${type}', '${escapeAttr(searchEl.value)}')">
+            <span class="check">+</span>
+            <span>Create "${escapeHtml(searchEl.value)}"</span>
+          </div>
+        `;
+      }
+    }
+
+    function toggleModalDropdown(type, e) {
+      e.stopPropagation();
+      const panel = document.getElementById(`modal-${type}-panel`);
+      const wasOpen = !panel.classList.contains('hidden');
+
+      // Close any open modal dropdown
+      document.querySelectorAll('#modal-meta .filter-dropdown-panel').forEach(p => p.classList.add('hidden'));
+
+      if (!wasOpen) {
+        panel.classList.remove('hidden');
+        const searchInput = document.getElementById(`modal-${type}-search`);
+        if (searchInput) searchInput.focus();
+        modalDropdownOpen = type;
+      } else {
+        modalDropdownOpen = null;
+      }
+    }
+
+    function filterModalDropdown(type) {
+      const content = document.getElementById('modal-content').value;
+      const { meta, body } = parseFrontmatter(content);
+      const cardTags = extractTags(body, meta);
+
+      const items = type === 'category' ? [...allCategories].sort() : [...allTags].sort();
+      const selected = type === 'category' ? (meta.category ? [meta.category] : []) : cardTags;
+      renderModalDropdownList(type, items, selected);
+    }
+
+    function handleModalDropdownKey(e, type) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const search = document.getElementById(`modal-${type}-search`).value.trim();
+        if (search) {
+          setModalMeta(type, search);
+        }
+      } else if (e.key === 'Escape') {
+        document.getElementById(`modal-${type}-panel`).classList.add('hidden');
+        modalDropdownOpen = null;
+      }
+    }
+
+    async function setModalPriority(value) {
+      const content = document.getElementById('modal-content').value;
+      const { meta, body } = parseFrontmatter(content);
+
+      meta.priority = value;
+
+      // Rebuild frontmatter
+      const newContent = rebuildFrontmatter(meta, body);
+      document.getElementById('modal-content').value = newContent;
+
+      // Save immediately if editing existing card
+      if (currentCard && !currentCard.isNew) {
+        await saveCardSilent();
+      }
+
+      // Close dropdown and refresh display
+      document.querySelectorAll('#modal-meta .filter-dropdown-panel').forEach(p => p.classList.add('hidden'));
+      modalDropdownOpen = null;
+      updateModalMeta();
+    }
+
+    async function setModalSize(value) {
+      const content = document.getElementById('modal-content').value;
+      const { meta, body } = parseFrontmatter(content);
+
+      meta.size = value;
+
+      // Rebuild frontmatter
+      const newContent = rebuildFrontmatter(meta, body);
+      document.getElementById('modal-content').value = newContent;
+
+      // Save immediately if editing existing card
+      if (currentCard && !currentCard.isNew) {
+        await saveCardSilent();
+      }
+
+      // Close dropdown and refresh display
+      document.querySelectorAll('#modal-meta .filter-dropdown-panel').forEach(p => p.classList.add('hidden'));
+      modalDropdownOpen = null;
+      updateModalMeta();
+    }
+
+    async function setModalMeta(type, value) {
+      const content = document.getElementById('modal-content').value;
+      const { meta, body } = parseFrontmatter(content);
+
+      if (type === 'category') {
+        // Toggle category
+        meta.category = meta.category === value ? null : value;
+      } else if (type === 'tag') {
+        // Toggle tag in array
+        const tags = Array.isArray(meta.tags) ? [...meta.tags] : [];
+        const idx = tags.indexOf(value);
+        if (idx >= 0) {
+          tags.splice(idx, 1);
+        } else {
+          tags.push(value);
+        }
+        meta.tags = tags;
+      }
+
+      // Rebuild frontmatter
+      const newContent = rebuildFrontmatter(meta, body);
+      document.getElementById('modal-content').value = newContent;
+
+      // Save immediately if editing existing card
+      if (currentCard && !currentCard.isNew) {
+        await saveCardSilent();
+      }
+
+      // Close dropdown and refresh display
+      document.querySelectorAll('#modal-meta .filter-dropdown-panel').forEach(p => p.classList.add('hidden'));
+      modalDropdownOpen = null;
+      updateModalMeta();
+    }
+
+    function rebuildFrontmatter(meta, body) {
+      const lines = ['---'];
+      if (meta.title) lines.push(`title: '${meta.title.replace(/'/g, "''")}'`);
+      if (meta.priority != null) lines.push(`priority: ${meta.priority}`);
+      if (meta.category) lines.push(`category: ${meta.category}`);
+      if (meta.size) lines.push(`size: ${meta.size}`);
+      if (Array.isArray(meta.tags)) {
+        lines.push(`tags: [${meta.tags.join(', ')}]`);
+      }
+      lines.push('---');
+      lines.push('');
+
+      return lines.join('\n') + body;
+    }
+
+    async function saveCardSilent() {
+      if (!currentCard || currentCard.isNew) return;
+
+      const content = document.getElementById('modal-content').value;
+      const column = columns.find(c => c.name === currentCard.column);
+      const filename = currentCard.filename;
+
+      try {
+        const fileHandle = await column.handle.getFileHandle(filename, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(content);
+        await writable.close();
+
+        // Update in-memory state
+        const { meta, body } = parseFrontmatter(content);
+        const tags = extractTags(body, meta);
+        tags.forEach(t => allTags.add(t));
+        if (meta.category) allCategories.add(meta.category);
+        if (meta.priority != null) allPriorities.add(meta.priority);
+
+        const cardIndex = column.cards.findIndex(c => c.filename === filename);
+        if (cardIndex !== -1) {
+          column.cards[cardIndex] = {
+            ...column.cards[cardIndex],
+            content,
+            body,
+            meta,
+            tags,
+            title: meta.title || filename.replace(/\.md$/, ''),
+          };
+        }
+
+        // Re-sort
+        column.cards.sort((a, b) => {
+          const pa = a.meta.priority ?? 999;
+          const pb = b.meta.priority ?? 999;
+          if (pa !== pb) return pa - pb;
+          return a.title.localeCompare(b.title);
+        });
+
+        renderBoard();
+        renderFilterDropdowns();
+        renderActiveFilters();
+      } catch (e) {
+        console.error('Failed to save:', e);
+      }
+    }
+
+    function createCard() {
+      // Default to first column
+      const columnName = columns[0]?.name || 'backlog';
+      currentCard = { column: columnName, filename: null, isNew: true };
+      document.getElementById('modal-content').value = `---
+title:
+priority:
+category:
+size:
+tags: []
+---
+
+`;
+      document.getElementById('modal-delete').style.display = 'none';
+      updateModalMeta();
+      document.getElementById('modal').classList.remove('hidden');
+      // New cards start in edit mode
+      setEditMode(true);
+    }
+
+    function editCard(columnName, filename) {
+      const column = columns.find(c => c.name === columnName);
+      const card = column?.cards.find(c => c.filename === filename);
+      if (!card) return;
+
+      currentCard = { column: columnName, filename, isNew: false };
+      document.getElementById('modal-content').value = card.content;
+      document.getElementById('modal-delete').style.display = 'block';
+      updateModalMeta();
+      document.getElementById('modal').classList.remove('hidden');
+      // Existing cards start in view mode
+      setEditMode(false);
+    }
+
+    // Update meta display as user types
+    document.getElementById('modal-content').addEventListener('input', updateModalMeta);
+
+    function closeModal(skipConfirm = false) {
+      // Check for unsaved changes in edit mode
+      if (!skipConfirm && modalEditMode) {
+        const currentContent = document.getElementById('modal-content').value;
+        if (currentContent !== modalOriginalContent) {
+          if (!confirm('You have unsaved changes. Discard them?')) {
+            return;
+          }
+        }
+      }
+      document.getElementById('modal').classList.add('hidden');
+      currentCard = null;
+      modalEditMode = false;
+    }
+
+    async function saveCard() {
+      const content = document.getElementById('modal-content').value;
+      const { meta } = parseFrontmatter(content);
+
+      // For new cards, generate filename from title
+      let filename;
+      if (currentCard.isNew) {
+        const title = meta.title?.trim();
+        if (!title) {
+          alert('Please add a title in the frontmatter');
+          return;
+        }
+        // Create safe filename from title
+        filename = title
+          .toLowerCase()
+          .replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 50) + '.md';
+      } else {
+        filename = currentCard.filename;
+      }
+
+      const column = columns.find(c => c.name === currentCard.column);
+
+      try {
+        // Write new/updated file
+        const fileHandle = await column.handle.getFileHandle(filename, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(content);
+        await writable.close();
+
+        // Update state
+        const { meta, body } = parseFrontmatter(content);
+        const tags = extractTags(body, meta);
+        tags.forEach(t => allTags.add(t));
+        if (meta.category) allCategories.add(meta.category);
+        if (meta.priority != null) allPriorities.add(meta.priority);
+
+        const existingIndex = column.cards.findIndex(c => c.filename === filename);
+        const cardData = {
+          filename,
+          title: meta.title || filename.replace(/\.md$/, ''),
+          content,
+          body,
+          meta,
+          tags,
+          handle: fileHandle
+        };
+
+        if (existingIndex !== -1) {
+          column.cards[existingIndex] = cardData;
+        } else {
+          column.cards.push(cardData);
+        }
+        // Re-sort by priority then title
+        column.cards.sort((a, b) => {
+          const pa = a.meta.priority ?? 999;
+          const pb = b.meta.priority ?? 999;
+          if (pa !== pb) return pa - pb;
+          return a.title.localeCompare(b.title);
+        });
+
+        renderBoard();
+        renderFilterDropdowns();
+        renderActiveFilters();
+
+        // Exit edit mode but keep modal open, or close if new card
+        if (currentCard.isNew) {
+          currentCard.isNew = false;
+          currentCard.filename = filename;
+        }
+        setEditMode(false);
+        updateModalMeta();
+      } catch (e) {
+        console.error(e);
+        alert('Failed to save: ' + e.message);
+      }
+    }
+
+    async function deleteCard() {
+      if (!currentCard || currentCard.isNew) return;
+
+      if (!confirm(`Delete "${currentCard.filename}"?`)) return;
+
+      const column = columns.find(c => c.name === currentCard.column);
+
+      try {
+        await column.handle.removeEntry(currentCard.filename);
+        const index = column.cards.findIndex(c => c.filename === currentCard.filename);
+        if (index !== -1) column.cards.splice(index, 1);
+
+        renderBoard();
+        closeModal();
+      } catch (e) {
+        console.error(e);
+        alert('Failed to delete: ' + e.message);
+      }
+    }
+
+    async function refresh() {
+      if (rootHandle) {
+        await loadBoard();
+        applyFilters();
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // For use in onclick="func('${escapeAttr(val)}')" - escapes for JS string in HTML attr
+    function escapeAttr(str) {
+      return String(str)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const modal = document.getElementById('modal');
+        if (modal.classList.contains('hidden')) return;
+        closeModal();
+      }
+      if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+        if (!document.getElementById('modal').classList.contains('hidden')) {
+          e.preventDefault();
+          saveCard();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
