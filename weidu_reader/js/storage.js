@@ -3,6 +3,7 @@
 const FEEDS_KEY = 'weidu_feeds';
 const CACHE_KEY = 'weidu_cache';
 const STARRED_KEY = 'weidu_starred';
+const READ_KEY = 'weidu_read';
 
 export const storage = {
   // Feed management
@@ -23,11 +24,18 @@ export const storage = {
         title: feed.title || feed.url,
         refreshInterval: feed.refreshInterval || 60, // minutes
         useCorsProxy: feed.useCorsProxy || false,
+        customColor: feed.customColor || null,
         addedAt: Date.now(),
       });
     }
     localStorage.setItem(FEEDS_KEY, JSON.stringify(feeds));
     return feeds;
+  },
+
+  getFeedColor(feedId) {
+    const feeds = this.getFeeds();
+    const feed = feeds.find(f => f.id === feedId);
+    return feed?.customColor || null;
   },
 
   removeFeed(feedId) {
@@ -93,5 +101,27 @@ export const storage = {
     }
     localStorage.setItem(STARRED_KEY, JSON.stringify(starred));
     return index < 0; // returns true if now starred
+  },
+
+  // Read articles
+  getRead() {
+    const data = localStorage.getItem(READ_KEY);
+    return data ? JSON.parse(data) : [];
+  },
+
+  isRead(articleId) {
+    return this.getRead().includes(articleId);
+  },
+
+  toggleRead(articleId) {
+    const read = this.getRead();
+    const index = read.indexOf(articleId);
+    if (index >= 0) {
+      read.splice(index, 1);
+    } else {
+      read.push(articleId);
+    }
+    localStorage.setItem(READ_KEY, JSON.stringify(read));
+    return index < 0; // returns true if now read
   },
 };

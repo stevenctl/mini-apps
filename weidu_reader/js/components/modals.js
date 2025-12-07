@@ -2,6 +2,17 @@
 
 import { storage } from '../storage.js';
 import { previewFeed } from '../feed-provider.js';
+import { placeholderColors } from './placeholders.js';
+
+function getDefaultColor(feedTitle) {
+  const str = feedTitle + 'color'; // Must match feed-item.js _getPlaceholderColor
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+  }
+  const index = Math.abs(hash) % placeholderColors.length;
+  return placeholderColors[index];
+}
 
 export function showModal(content) {
   const container = document.getElementById('modal-container');
@@ -138,8 +149,19 @@ export function showManageFeedsModal() {
 
   const feedsHtml = feeds.length === 0
     ? '<p style="color: var(--color-text-secondary);">No feeds added yet.</p>'
-    : feeds.map(feed => `
+    : feeds.map(feed => {
+        const defaultColor = getDefaultColor(feed.title);
+        const currentColor = feed.customColor || defaultColor;
+        return `
         <div class="manage-feed-item" data-id="${feed.id}">
+          <div class="manage-feed-color">
+            <button class="color-swatch-btn" data-id="${feed.id}" style="background-color: ${currentColor}" title="Change color"></button>
+            <div class="color-palette" data-id="${feed.id}">
+              ${placeholderColors.map(color => `
+                <button class="palette-color ${color === currentColor ? 'selected' : ''}" data-color="${color}" data-feed-id="${feed.id}" style="background-color: ${color}"></button>
+              `).join('')}
+            </div>
+          </div>
           <div class="manage-feed-info">
             <div class="manage-feed-title">${escapeHtml(feed.title)}</div>
             <div class="manage-feed-url">${escapeHtml(feed.url)}</div>
@@ -152,7 +174,7 @@ export function showManageFeedsModal() {
             <button class="btn btn-danger btn-remove" data-id="${feed.id}">Remove</button>
           </div>
         </div>
-      `).join('');
+      `}).join('');
 
   showModal(`
     <div class="modal-header">
@@ -196,6 +218,42 @@ export function showManageFeedsModal() {
       }
     });
   });
+
+  // Handle color swatch button clicks (toggle palette)
+  document.querySelectorAll('.color-swatch-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const feedId = btn.dataset.id;
+      // Close all other palettes
+      document.querySelectorAll('.color-palette').forEach(p => {
+        if (p.dataset.id !== feedId) p.classList.remove('open');
+      });
+      // Toggle this palette
+      const palette = document.querySelector(`.color-palette[data-id="${feedId}"]`);
+      palette.classList.toggle('open');
+    });
+  });
+
+  // Handle palette color selection
+  document.querySelectorAll('.palette-color').forEach(colorBtn => {
+    colorBtn.addEventListener('click', () => {
+      const feedId = colorBtn.dataset.feedId;
+      const color = colorBtn.dataset.color;
+      const feed = feeds.find(f => f.id === feedId);
+      if (feed) {
+        storage.saveFeed({ ...feed, customColor: color });
+        window.dispatchEvent(new CustomEvent('feeds-updated'));
+        showManageFeedsModal(); // Refresh modal
+      }
+    });
+  });
+
+  // Close palette when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.manage-feed-color')) {
+      document.querySelectorAll('.color-palette').forEach(p => p.classList.remove('open'));
+    }
+  }, { once: true });
 }
 
 function escapeHtml(text) {

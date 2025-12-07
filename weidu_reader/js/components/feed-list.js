@@ -1,98 +1,177 @@
-// Feed list web component with infinite scroll
+// Feed list web component with infinite scroll and incremental rendering
 
 import { AggregateFeedProvider } from '../feed-provider.js';
 import { storage } from '../storage.js';
+import './feed-item.js';
 
 const BATCH_SIZE = 20;
 
 class FeedList extends HTMLElement {
   constructor() {
     super();
+    this.attachShadow({ mode: 'open' });
     this.provider = new AggregateFeedProvider();
     this.articles = [];
     this.filteredArticles = [];
     this.displayedCount = 0;
     this.loading = false;
-    this.selectedAuthors = new Set(); // empty = all selected
+    this.selectedAuthors = new Set();
     this.searchQuery = '';
     this.showStarredOnly = false;
+    this.showUnreadOnly = false;
+
+    // Track rendered items for incremental updates
+    this._renderedIds = new Set();
+
+    // Bound handlers for cleanup
+    this._onScroll = this._handleScroll.bind(this);
+    this._onFilterChange = this._handleFilterChange.bind(this);
+    this._onSearchChange = this._handleSearchChange.bind(this);
+    this._onMonthNavigate = this._handleMonthNavigate.bind(this);
+    this._onFeedsUpdated = () => this.loadArticles(true);
+    this._onStarToggle = this._handleStarToggle.bind(this);
+    this._onReadToggle = this._handleReadToggle.bind(this);
   }
 
   connectedCallback() {
-    this.render();
+    this._render();
+    this._attachListeners();
     this.loadArticles();
-    this.setupInfiniteScroll();
-    this.setupSearch();
-
-    // Listen for feed changes
-    window.addEventListener('feeds-updated', () => this.loadArticles(true));
-  }
-
-  setupSearch() {
-    const searchInput = document.getElementById('search-input');
-    if (!searchInput) return;
-
-    let debounceTimer;
-    searchInput.addEventListener('input', () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        this.searchQuery = searchInput.value.toLowerCase().trim();
-        this.applyFilters();
-        this.displayedCount = 0;
-        this.loadMore();
-      }, 200);
-    });
   }
 
   disconnectedCallback() {
-    if (this.scrollHandler) {
-      window.removeEventListener('scroll', this.scrollHandler);
+    this._detachListeners();
+  }
+
+  _attachListeners() {
+    window.addEventListener('scroll', this._onScroll);
+    window.addEventListener('feeds-updated', this._onFeedsUpdated);
+    window.addEventListener('filter-change', this._onFilterChange);
+    window.addEventListener('search-change', this._onSearchChange);
+    window.addEventListener('month-navigate', this._onMonthNavigate);
+
+    // Listen for star/read toggle events from feed-item components
+    this.shadowRoot.addEventListener('star-toggle', this._onStarToggle);
+    this.shadowRoot.addEventListener('read-toggle', this._onReadToggle);
+  }
+
+  _detachListeners() {
+    window.removeEventListener('scroll', this._onScroll);
+    window.removeEventListener('feeds-updated', this._onFeedsUpdated);
+    window.removeEventListener('filter-change', this._onFilterChange);
+    window.removeEventListener('search-change', this._onSearchChange);
+    window.removeEventListener('month-navigate', this._onMonthNavigate);
+
+    this.shadowRoot.removeEventListener('star-toggle', this._onStarToggle);
+    this.shadowRoot.removeEventListener('read-toggle', this._onReadToggle);
+  }
+
+  _handleScroll() {
+    if (this.loading) return;
+    if (this.displayedCount >= this.filteredArticles.length) return;
+
+    const scrollY = window.scrollY;
+    const windowHeight = window.innerHeight;
+    const docHeight = document.documentElement.scrollHeight;
+
+    if (scrollY + windowHeight >= docHeight - 200) {
+      this.loadMore();
     }
   }
 
-  setupInfiniteScroll() {
-    this.scrollHandler = () => {
-      if (this.loading) return;
-      if (this.displayedCount >= this.filteredArticles.length) return;
+  _handleFilterChange(e) {
+    const { selectedAuthors, showStarredOnly, showUnreadOnly } = e.detail;
+    this.selectedAuthors = new Set(selectedAuthors); // Copy to avoid shared reference
+    this.showStarredOnly = showStarredOnly;
+    this.showUnreadOnly = showUnreadOnly;
+    this._applyFiltersAndReset();
+  }
 
-      const scrollY = window.scrollY;
-      const windowHeight = window.innerHeight;
-      const docHeight = document.documentElement.scrollHeight;
+  _handleSearchChange(e) {
+    this.searchQuery = e.detail.query;
+    this._applyFiltersAndReset();
+  }
 
-      if (scrollY + windowHeight >= docHeight - 200) {
-        this.loadMore();
-      }
-    };
-    window.addEventListener('scroll', this.scrollHandler);
+  _handleMonthNavigate(e) {
+    const { monthKey } = e.detail;
+    const target = this.shadowRoot.querySelector(`[data-month="${monthKey}"]`);
+
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      // Month not yet loaded, render all and scroll
+      this.displayedCount = this.filteredArticles.length;
+      this._renderList();
+      setTimeout(() => {
+        const target = this.shadowRoot.querySelector(`[data-month="${monthKey}"]`);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+  }
+
+  _handleStarToggle(e) {
+    const { articleId, starred } = e.detail;
+
+    // If showing starred only and we unstarred, re-filter
+    if (this.showStarredOnly && !starred) {
+      this._applyFiltersAndReset();
+    }
+  }
+
+  _handleReadToggle(e) {
+    const { articleId, read } = e.detail;
+
+    // If showing unread only and we marked as read, re-filter
+    if (this.showUnreadOnly && read) {
+      this._applyFiltersAndReset();
+    }
+  }
+
+  _applyFiltersAndReset() {
+    this._applyFilters();
+    this.displayedCount = 0;
+    this._renderedIds.clear();
+    this.loadMore();
   }
 
   async loadArticles(forceRefresh = false) {
     this.loading = true;
-    this.renderLoading();
+    this._renderLoading();
 
     try {
       this.articles = await this.provider.fetchAllArticles(forceRefresh);
-      this.applyFilters();
+      this._applyFilters();
       this.displayedCount = 0;
-      this.updateSidebar();
+      this._renderedIds.clear();
+
+      // Notify sidebar of new data
+      this._notifySidebar();
+
       this.loadMore();
     } catch (error) {
       console.error('Error loading articles:', error);
-      this.renderError();
+      this._renderError();
     }
 
     this.loading = false;
   }
 
-  applyFilters() {
+  _notifySidebar() {
     const feeds = storage.getFeeds();
-    const feedMap = {};
-    feeds.forEach(f => feedMap[f.id] = f);
+    this.dispatchEvent(new CustomEvent('articles-loaded', {
+      bubbles: true,
+      detail: { articles: this.articles, feeds }
+    }));
+  }
+
+  _applyFilters() {
+    const feeds = storage.getFeeds();
+    const feedMap = new Map(feeds.map(f => [f.id, f]));
 
     this.filteredArticles = this.articles.filter(article => {
       // Author filter
       if (this.selectedAuthors.size > 0) {
-        const feed = feedMap[article.feedId];
+        const feed = feedMap.get(article.feedId);
         const feedTitle = feed?.title || 'Unknown Feed';
         if (!this.selectedAuthors.has(feedTitle)) return false;
       }
@@ -100,9 +179,9 @@ class FeedList extends HTMLElement {
       // Search filter
       if (this.searchQuery) {
         const title = (article.title || '').toLowerCase();
-        const description = this.stripHtml(article.description || '').toLowerCase();
+        const description = this._stripHtml(article.description || '').toLowerCase();
         const author = (article.author || '').toLowerCase();
-        const feedTitle = (feedMap[article.feedId]?.title || '').toLowerCase();
+        const feedTitle = (feedMap.get(article.feedId)?.title || '').toLowerCase();
 
         if (!title.includes(this.searchQuery) &&
             !description.includes(this.searchQuery) &&
@@ -117,6 +196,11 @@ class FeedList extends HTMLElement {
         return false;
       }
 
+      // Unread filter
+      if (this.showUnreadOnly && storage.isRead(article.id)) {
+        return false;
+      }
+
       return true;
     });
   }
@@ -124,181 +208,86 @@ class FeedList extends HTMLElement {
   loadMore() {
     const newCount = Math.min(this.displayedCount + BATCH_SIZE, this.filteredArticles.length);
     this.displayedCount = newCount;
-    this.renderList();
+    this._renderList();
   }
 
-  render() {
-    this.innerHTML = '<div class="feed-container"></div>';
+  _render() {
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host {
+          display: block;
+        }
+        .feed-container {
+          column-count: 3;
+          column-gap: 1rem;
+        }
+        .feed-container > * {
+          break-inside: avoid;
+          margin-bottom: 1rem;
+        }
+        .loading {
+          column-span: all;
+          padding: 2rem;
+          text-align: center;
+          color: var(--color-text-secondary, #666);
+        }
+        .empty-state {
+          column-span: all;
+          padding: 3rem;
+          text-align: center;
+          color: var(--color-text-secondary, #666);
+        }
+        .empty-state h3 {
+          margin: 0 0 0.5rem 0;
+          color: var(--color-text, #333);
+        }
+        .empty-state p {
+          margin: 0;
+        }
+        .month-separator {
+          column-span: all;
+          text-align: center;
+          padding: 2rem 0 1rem;
+          font-weight: 600;
+          font-size: 1rem;
+          color: var(--color-text-secondary, #666);
+        }
+
+        @media (max-width: 900px) {
+          .feed-container {
+            column-count: 2;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .feed-container {
+            column-count: 1;
+          }
+        }
+      </style>
+      <div class="feed-container"></div>
+    `;
   }
 
-  renderLoading() {
-    const container = this.querySelector('.feed-container');
+  _renderLoading() {
+    const container = this.shadowRoot.querySelector('.feed-container');
     container.innerHTML = '<div class="loading">Loading feeds...</div>';
+    this._renderedIds.clear();
   }
 
-  renderError() {
-    const container = this.querySelector('.feed-container');
+  _renderError() {
+    const container = this.shadowRoot.querySelector('.feed-container');
     container.innerHTML = `
       <div class="empty-state">
         <h3>Error loading feeds</h3>
         <p>Please check your connection and try again.</p>
       </div>
     `;
+    this._renderedIds.clear();
   }
 
-  updateSidebar() {
-    const feeds = storage.getFeeds();
-    const feedMap = {};
-    feeds.forEach(f => feedMap[f.id] = f);
-
-    // Get unique authors (feed titles)
-    const authors = new Set();
-    this.articles.forEach(article => {
-      const feed = feedMap[article.feedId];
-      if (feed?.title) authors.add(feed.title);
-    });
-
-    // Get unique months
-    const months = new Map();
-    this.articles.forEach(article => {
-      if (article.pubDate) {
-        const date = new Date(article.pubDate);
-        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        if (!months.has(key)) {
-          months.set(key, {
-            key,
-            label: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-          });
-        }
-      }
-    });
-
-    // Render starred filter
-    const starredFilter = document.getElementById('starred-filter');
-    if (starredFilter) {
-      starredFilter.checked = this.showStarredOnly;
-      starredFilter.onchange = () => {
-        this.showStarredOnly = starredFilter.checked;
-        this.applyFilters();
-        this.displayedCount = 0;
-        this.loadMore();
-      };
-    }
-
-    // Render author filters
-    const authorContainer = document.getElementById('author-filters');
-    if (authorContainer) {
-      const sortedAuthors = [...authors].sort();
-      authorContainer.innerHTML = sortedAuthors.map(author => {
-        const checked = this.selectedAuthors.size === 0 || this.selectedAuthors.has(author);
-        return `
-          <label class="author-filter">
-            <input type="checkbox" value="${this.escapeHtml(author)}" ${checked ? 'checked' : ''}>
-            ${this.escapeHtml(author)}
-          </label>
-        `;
-      }).join('');
-
-      authorContainer.querySelectorAll('input').forEach(input => {
-        input.addEventListener('change', () => this.handleAuthorFilter(input));
-      });
-
-      // Setup toggle all button
-      const toggleBtn = document.getElementById('toggle-authors');
-      if (toggleBtn) {
-        this.updateToggleButton();
-        toggleBtn.onclick = () => this.toggleAllAuthors();
-      }
-    }
-
-    // Render month navigation
-    const monthContainer = document.getElementById('month-nav');
-    if (monthContainer) {
-      const sortedMonths = [...months.values()].sort((a, b) => b.key.localeCompare(a.key));
-      monthContainer.innerHTML = sortedMonths.map(month => `
-        <div class="month-link" data-month="${month.key}">${month.label}</div>
-      `).join('');
-
-      monthContainer.querySelectorAll('.month-link').forEach(link => {
-        link.addEventListener('click', () => this.scrollToMonth(link.dataset.month));
-      });
-    }
-  }
-
-  handleAuthorFilter(input) {
-    const allCheckboxes = document.querySelectorAll('#author-filters input');
-    const checkedCount = [...allCheckboxes].filter(cb => cb.checked).length;
-
-    if (checkedCount === 0 || checkedCount === allCheckboxes.length) {
-      // None or all checked = no filter (show all)
-      this.selectedAuthors.clear();
-    } else {
-      // Build set of checked authors
-      this.selectedAuthors.clear();
-      allCheckboxes.forEach(cb => {
-        if (cb.checked) this.selectedAuthors.add(cb.value);
-      });
-    }
-
-    this.updateToggleButton();
-    this.applyFilters();
-    this.displayedCount = 0;
-    this.loadMore();
-  }
-
-  updateToggleButton() {
-    const toggleBtn = document.getElementById('toggle-authors');
-    const allCheckboxes = document.querySelectorAll('#author-filters input');
-    if (!toggleBtn || allCheckboxes.length === 0) return;
-
-    const anyChecked = [...allCheckboxes].some(cb => cb.checked);
-    toggleBtn.textContent = anyChecked ? 'Deselect all' : 'Select all';
-  }
-
-  toggleAllAuthors() {
-    const allCheckboxes = document.querySelectorAll('#author-filters input');
-    const anyChecked = [...allCheckboxes].some(cb => cb.checked);
-
-    // Toggle: if any checked, uncheck all; if none checked, check all
-    allCheckboxes.forEach(cb => {
-      cb.checked = !anyChecked;
-    });
-    this.selectedAuthors.clear();
-
-    this.updateToggleButton();
-    this.applyFilters();
-    this.displayedCount = 0;
-    this.loadMore();
-  }
-
-  scrollToMonth(monthKey) {
-    const target = this.querySelector(`[data-month="${monthKey}"]`);
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      // Month not yet loaded, load all and scroll
-      this.displayedCount = this.filteredArticles.length;
-      this.renderList();
-      setTimeout(() => {
-        const target = this.querySelector(`[data-month="${monthKey}"]`);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 50);
-    }
-
-    // Update active state
-    document.querySelectorAll('.month-link').forEach(link => {
-      link.classList.toggle('active', link.dataset.month === monthKey);
-    });
-  }
-
-  getMonthKey(dateStr) {
-    if (!dateStr) return null;
-    const date = new Date(dateStr);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-  }
-
-  renderList() {
-    const container = this.querySelector('.feed-container');
+  _renderList() {
+    const container = this.shadowRoot.querySelector('.feed-container');
     const feeds = storage.getFeeds();
 
     if (feeds.length === 0) {
@@ -308,6 +297,7 @@ class FeedList extends HTMLElement {
           <p>Click "Import Feed" to add your first RSS feed.</p>
         </div>
       `;
+      this._renderedIds.clear();
       return;
     }
 
@@ -318,86 +308,81 @@ class FeedList extends HTMLElement {
           <p>No articles match your filters.</p>
         </div>
       `;
+      this._renderedIds.clear();
       return;
     }
 
-    const feedMap = {};
-    feeds.forEach(f => feedMap[f.id] = f);
-
+    const feedMap = new Map(feeds.map(f => [f.id, f]));
     const displayed = this.filteredArticles.slice(0, this.displayedCount);
-    let currentMonth = null;
-    let html = '';
 
-    displayed.forEach(article => {
-      const feed = feedMap[article.feedId];
-      const feedTitle = feed?.title || 'Unknown Feed';
-      const date = article.pubDate ? new Date(article.pubDate).toLocaleDateString() : '';
-      const description = this.stripHtml(article.description).slice(0, 200);
-      const monthKey = this.getMonthKey(article.pubDate);
+    // If starting fresh, clear container
+    if (this._renderedIds.size === 0) {
+      container.innerHTML = '';
+    }
+
+    // Remove loading indicator if present
+    const loadingEl = container.querySelector('.loading');
+    if (loadingEl) loadingEl.remove();
+
+    let currentMonth = null;
+
+    // Find last rendered month
+    const monthSeparators = container.querySelectorAll('.month-separator');
+    if (monthSeparators.length > 0) {
+      currentMonth = monthSeparators[monthSeparators.length - 1].dataset.month;
+    }
+
+    // Append only new items
+    const fragment = document.createDocumentFragment();
+
+    for (const article of displayed) {
+      if (this._renderedIds.has(article.id)) continue;
+
+      const monthKey = this._getMonthKey(article.pubDate);
 
       // Add month separator if new month
       if (monthKey && monthKey !== currentMonth) {
         const monthDate = new Date(article.pubDate);
         const monthLabel = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        html += `<div class="month-separator" data-month="${monthKey}">${monthLabel}</div>`;
+
+        const separator = document.createElement('div');
+        separator.className = 'month-separator';
+        separator.dataset.month = monthKey;
+        separator.textContent = monthLabel;
+        fragment.appendChild(separator);
+
         currentMonth = monthKey;
       }
 
-      const isStarred = storage.isStarred(article.id);
+      const feed = feedMap.get(article.feedId);
+      const feedTitle = feed?.title || 'Unknown Feed';
 
-      html += `
-        <div class="feed-item-wrapper">
-          <a class="feed-item" href="${this.escapeHtml(article.link)}" target="_blank" rel="noopener">
-            <div class="feed-item-header">
-              <span class="feed-item-feed">${this.escapeHtml(feedTitle)}</span>
-              ${date ? `<span class="feed-item-date">${date}</span>` : ''}
-            </div>
-            <div class="feed-item-title">${this.escapeHtml(article.title)}</div>
-            ${article.author ? `<div class="feed-item-meta">${this.escapeHtml(article.author)}</div>` : ''}
-            ${description ? `<div class="feed-item-description">${this.escapeHtml(description)}</div>` : ''}
-          </a>
-          <button class="star-btn ${isStarred ? 'starred' : ''}" data-id="${article.id}" title="${isStarred ? 'Unstar' : 'Star'}">
-            ${isStarred ? '★' : '☆'}
-          </button>
-        </div>
-      `;
-    });
+      const feedItem = document.createElement('feed-item');
+      feedItem.article = article;
+      feedItem.feedTitle = feedTitle;
+      fragment.appendChild(feedItem);
 
-    container.innerHTML = html;
+      this._renderedIds.add(article.id);
+    }
 
-    // Add star button handlers
-    container.querySelectorAll('.star-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const articleId = btn.dataset.id;
-        const nowStarred = storage.toggleStar(articleId);
-        btn.classList.toggle('starred', nowStarred);
-        btn.textContent = nowStarred ? '★' : '☆';
-        btn.title = nowStarred ? 'Unstar' : 'Star';
-
-        // If showing starred only and we unstarred, re-filter
-        if (this.showStarredOnly && !nowStarred) {
-          this.applyFilters();
-          this.displayedCount = 0;
-          this.loadMore();
-        }
-      });
-    });
+    container.appendChild(fragment);
 
     // Show loading indicator if more items available
     if (this.displayedCount < this.filteredArticles.length) {
-      container.insertAdjacentHTML('beforeend', '<div class="loading">Loading more...</div>');
+      const loading = document.createElement('div');
+      loading.className = 'loading';
+      loading.textContent = 'Loading more...';
+      container.appendChild(loading);
     }
   }
 
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+  _getMonthKey(dateStr) {
+    if (!dateStr) return null;
+    const date = new Date(dateStr);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
   }
 
-  stripHtml(html) {
+  _stripHtml(html) {
     const div = document.createElement('div');
     div.innerHTML = html;
     return div.textContent || div.innerText || '';

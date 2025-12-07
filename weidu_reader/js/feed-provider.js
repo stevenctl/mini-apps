@@ -5,16 +5,44 @@ import { storage } from './storage.js';
 // Parse RSS 2.0 feed
 function parseRSS(xml, feedId, feedUrl) {
   const items = xml.querySelectorAll('item');
-  return Array.from(items).map(item => ({
-    id: item.querySelector('guid')?.textContent || item.querySelector('link')?.textContent || crypto.randomUUID(),
-    feedId,
-    feedUrl,
-    title: item.querySelector('title')?.textContent || 'Untitled',
-    link: item.querySelector('link')?.textContent || '',
-    description: item.querySelector('description')?.textContent || '',
-    pubDate: parseDate(item.querySelector('pubDate')?.textContent),
-    author: item.querySelector('author')?.textContent || item.querySelector('dc\\:creator')?.textContent || '',
-  }));
+  return Array.from(items).map(item => {
+    // Try to find image from various sources
+    let image = null;
+
+    // Check enclosure
+    const enclosure = item.querySelector('enclosure');
+    if (enclosure?.getAttribute('type')?.startsWith('image/')) {
+      image = enclosure.getAttribute('url');
+    }
+
+    // Check media:content or media:thumbnail
+    if (!image) {
+      const mediaContent = item.querySelector('content, thumbnail');
+      if (mediaContent?.getAttribute('url')) {
+        image = mediaContent.getAttribute('url');
+      }
+    }
+
+    // Check itunes:image
+    if (!image) {
+      const itunesImage = item.querySelector('image');
+      if (itunesImage?.getAttribute('href')) {
+        image = itunesImage.getAttribute('href');
+      }
+    }
+
+    return {
+      id: item.querySelector('guid')?.textContent || item.querySelector('link')?.textContent || crypto.randomUUID(),
+      feedId,
+      feedUrl,
+      title: item.querySelector('title')?.textContent || 'Untitled',
+      link: item.querySelector('link')?.textContent || '',
+      description: item.querySelector('description')?.textContent || '',
+      pubDate: parseDate(item.querySelector('pubDate')?.textContent),
+      author: item.querySelector('author')?.textContent || item.querySelector('dc\\:creator')?.textContent || '',
+      image,
+    };
+  });
 }
 
 // Parse Atom feed
@@ -22,6 +50,24 @@ function parseAtom(xml, feedId, feedUrl) {
   const entries = xml.querySelectorAll('entry');
   return Array.from(entries).map(entry => {
     const link = entry.querySelector('link[rel="alternate"]') || entry.querySelector('link');
+
+    // Try to find image
+    let image = null;
+
+    // Check link with rel="enclosure" and image type
+    const enclosureLink = entry.querySelector('link[rel="enclosure"]');
+    if (enclosureLink?.getAttribute('type')?.startsWith('image/')) {
+      image = enclosureLink.getAttribute('href');
+    }
+
+    // Check media:content or media:thumbnail
+    if (!image) {
+      const mediaContent = entry.querySelector('content[medium="image"], thumbnail');
+      if (mediaContent?.getAttribute('url')) {
+        image = mediaContent.getAttribute('url');
+      }
+    }
+
     return {
       id: entry.querySelector('id')?.textContent || crypto.randomUUID(),
       feedId,
@@ -31,6 +77,7 @@ function parseAtom(xml, feedId, feedUrl) {
       description: entry.querySelector('summary')?.textContent || entry.querySelector('content')?.textContent || '',
       pubDate: parseDate(entry.querySelector('published')?.textContent || entry.querySelector('updated')?.textContent),
       author: entry.querySelector('author name')?.textContent || '',
+      image,
     };
   });
 }

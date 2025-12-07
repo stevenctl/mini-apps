@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>喂读 - Weidu RSS Reader</title>
+  <title>喂读 - Weidu</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <div id="app">
     <header class="app-header">
-      <h1>喂读</h1>
+      <h1><abbr title="wèi dú">喂读</abbr></h1>
       <div class="header-actions">
         <button id="import-feed-btn" class="btn btn-primary">+ Import Feed</button>
         <button id="manage-feeds-btn" class="btn">Manage Feeds</button>
@@ -17,29 +17,11 @@
       </div>
     </header>
 
-    <div class="search-bar">
-      <input type="search" id="search-input" placeholder="Search articles...">
-    </div>
+    <feed-search></feed-search>
 
     <div class="app-layout">
-      <aside class="sidebar" id="sidebar">
-        <div class="sidebar-section">
-          <label class="author-filter">
-            <input type="checkbox" id="starred-filter">
-            ★ Starred only
-          </label>
-        </div>
-        <div class="sidebar-section">
-          <div class="sidebar-header">
-            <h3>Authors</h3>
-            <button id="toggle-authors" class="btn-link">Deselect all</button>
-          </div>
-          <div id="author-filters"></div>
-        </div>
-        <div class="sidebar-section">
-          <h3>Months</h3>
-          <div id="month-nav" class="month-nav"></div>
-        </div>
+      <aside class="sidebar">
+        <feed-sidebar></feed-sidebar>
       </aside>
       <main id="main-content">
         <feed-list></feed-list>
